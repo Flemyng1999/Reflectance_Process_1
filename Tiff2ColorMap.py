@@ -1,7 +1,6 @@
 import os
-
+import matplotlib
 import matplotlib.pyplot as plt
-from matplotlib import cm
 from matplotlib.colors import ListedColormap
 import matplotlib.colors as colors
 import tiff_tool as tt
@@ -28,37 +27,37 @@ def clean_arr(arr, n=3):
     return arr
 
 
-def map_array(array, extreme, my_color, label_, save_path_):
-    cd.clean_arr(array, 3)  # 去除异常值
-    # arr[arr == 0] = np.nan
-    min_, max_ = np.min(extreme), np.max(extreme)
-    ticks = list(np.linspace(min_, max_, 5))
-    array[0, 0], array[0, 1] = max_, min_
-
-    map_color = colors.LinearSegmentedColormap.from_list('my_list', my_color)
-
-    # 把背景值设为白色
-    N = 2560
-    my_colors = cm.get_cmap(map_color, N)
-    new_colors = my_colors(np.linspace(0, 1, N))
-    white = np.array([256 / 256, 256 / 256, 256 / 256, 1])
-    num = int(N * (0 - min_) / (max_ - min_))
-    new_colors[num, :] = white
-    new_cmp = ListedColormap(new_colors)
-
-    im = ax.imshow(array, cmap=new_cmp)
-    fig.colorbar(im,
-                 label=label_,
-                 orientation="horizontal",
-                 pad=0.03,
-                 ticks=ticks
-                 )
-    # plt.axis('off')  # 设置不显示边框
-    ax = plt.gca()  # 设置显示边框,不显示刻度值
-    ax.axes.xaxis.set_visible(False)
-    ax.axes.yaxis.set_visible(False)
-    fig.savefig(save_path_)
-    plt.show()
+# def map_array(array, extreme, my_color, label_, save_path_):
+#     cd.clean_arr(array, 3)  # 去除异常值
+#     # arr[arr == 0] = np.nan
+#     min_, max_ = np.min(extreme), np.max(extreme)
+#     ticks = list(np.linspace(min_, max_, 5))
+#     array[0, 0], array[0, 1] = max_, min_
+#
+#     map_color = colors.LinearSegmentedColormap.from_list('my_list', my_color)
+#
+#     # 把背景值设为白色
+#     N = 2560
+#     my_colors = cm.get_cmap(map_color, N)
+#     new_colors = my_colors(np.linspace(0, 1, N))
+#     white = np.array([256 / 256, 256 / 256, 256 / 256, 1])
+#     num = int(N * (0 - min_) / (max_ - min_))
+#     new_colors[num, :] = white
+#     new_cmp = ListedColormap(new_colors)
+#
+#     im = ax.imshow(array, cmap=new_cmp)
+#     fig.colorbar(im,
+#                  label=label_,
+#                  orientation="horizontal",
+#                  pad=0.03,
+#                  ticks=ticks
+#                  )
+#     # plt.axis('off')  # 设置不显示边框
+#     ax = plt.gca()  # 设置显示边框,不显示刻度值
+#     ax.axes.xaxis.set_visible(False)
+#     ax.axes.yaxis.set_visible(False)
+#     fig.savefig(save_path_)
+#     plt.show()
 
 
 def map_one_vi(path_, tif_path_, my_color, PNG_path_, label_):
@@ -76,7 +75,7 @@ def map_one_vi(path_, tif_path_, my_color, PNG_path_, label_):
 
     # 把背景值设为白色
     N = 2560
-    my_colors = cm.get_cmap(map_color, N)
+    my_colors = matplotlib.colormaps.get_cmap(map_color)
     new_colors = my_colors(np.linspace(0, 1, N))
     white = np.array([256 / 256, 256 / 256, 256 / 256, 1])
     num = int(N * (0 - min_) / (max_ - min_))

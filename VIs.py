@@ -61,7 +61,7 @@ def irrad(file1, file2):
     ax.set_xlabel('Wavelength(nm)')
     ax.set_ylabel('Radiance')
     plt.legend(loc='best')
-    save_path = file1.replace(r'\rad_target.txt', r'\I&E.svg')
+    save_path = file1.replace('rad_target.txt', 'I&E.png')
     fig.savefig(save_path)
     plt.show()
 
