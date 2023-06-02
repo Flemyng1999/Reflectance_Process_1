@@ -6,117 +6,104 @@ Created on Mon Jul 18 15:37:27 2022
 """
 
 import os
+
 import numpy as np
-import tiff_tool as tt
 import matplotlib.pyplot as plt
+import statsmodels.api as sm
+from numpy import ndarray
+from tqdm import tqdm
+
+import tiff_tool as tt
+
+
+def find_nearest_index(target: float, arr: np.ndarray) -> ndarray[int]:
+    """
+    寻找目标值在数组中的最近值，并返回其索引
+
+    Args:
+        target: 目标值
+        arr: 数组
+
+    Returns:
+        最近值的索引
+    """
+    nearest_values = np.abs(target - arr)
+    index = np.argmin(nearest_values)
+    return index
+
+
+def ndvi_segment(ndvi_array: np.ndarray, bins_num: int = 500, show_plot: bool = False, n: float = 1.5) -> np.ndarray:
+    """
+    根据NDVI数组，计算出阈值，并将数组转换为二值图像
+
+    Args:
+        ndvi_array: NDVI数组
+        bins_num: 直方图的箱数，默认为500
+        show_plot: 是否显示绘制的图像，默认为False
+        n: 阈值计算中的参数n，默认为1.5.数字越大阈值越低
+
+    Returns:
+        二值图像数组
+    """
+    ndvi_number, ndvi_value = np.histogram(ndvi_array[ndvi_array > 0], bins=bins_num)
+    cycle, ndvi_number = sm.tsa.filters.hpfilter(ndvi_number, 500)
+    ndvi_value = (ndvi_value[1:] + ndvi_value[:-1]) / 2
+
+    threshold_index = find_nearest_index(0.4, ndvi_value)
+    ndvi_number_max = np.max(ndvi_number[threshold_index:])
+    ndvi_number_max_index = find_nearest_index(ndvi_number_max, ndvi_number)
+    half_distance = int(bins_num - ndvi_number_max_index)
+    down_limit = ndvi_number_max_index - half_distance
+
+    sample = ndvi_array[ndvi_value[down_limit] < ndvi_array]
+    mean = np.mean(sample)
+    std = np.std(sample)
+    target = mean - n * std
+    target_index = find_nearest_index(target, ndvi_value)
+
+    ndvi_array = np.where(ndvi_array >= target, 1, 0)
+
+    if show_plot:
+        fig, axes = plt.subplots(2, constrained_layout=1, figsize=(7, 9), dpi=200)
+        axes[0].plot(ndvi_value, ndvi_number)
+        axes[0].scatter(ndvi_value[target_index], ndvi_number[target_index],
+                        c='r', zorder=5)
+        axes[0].set_xlabel('NDVI')
+        axes[0].set_ylabel('Count')
+        axes[1].imshow(ndvi_array, cmap='gray_r')
+        axes[1].set_xlabel('NDVI')
+        axes[1].axis('off')
+        plt.show()
+        plt.close()
+    else:
+        pass
+    return ndvi_array
 
 
 # 使用反射率数据计算NDVI分离植被
-def only_vegetation(red, nir, reflectance, if_show=False):
-    up_limit = None
-    red_band = (reflectance[red - 2] + reflectance[red - 1] + reflectance[red]) / 3
-    nir_band = (reflectance[nir - 2] + reflectance[nir - 1] + reflectance[nir]) / 3
+def ref_segment(red: int, nir: int, reflectance_array: np.ndarray, if_show: bool = False, n: float = 1.5) -> np.ndarray:
+    """
+    根据红波段和近红外波段的反射率数据计算NDVI分离植被
+
+    Args:
+        red: 红波段的波段序号
+        nir: 近红外波段的波段序号
+        reflectance_array: 反射率数组
+        if_show: 是否显示绘制的图像，默认为False
+        n: 阈值计算中的参数n，默认为1.5.数字越大阈值越低
+
+    Returns:
+        二值图像数组
+    """
+    red_band = (reflectance_array[red - 2] + reflectance_array[red - 1] + reflectance_array[red]) / 3
+    nir_band = (reflectance_array[nir - 2] + reflectance_array[nir - 1] + reflectance_array[nir]) / 3
     red_band, nir_band = red_band.astype(np.float64), nir_band.astype(np.float64)
     sub = nir_band - red_band
     add = nir_band + red_band
     ndvi_ = np.divide(sub, add, out=np.zeros_like(sub), where=add != 0)  # 防止除数为零
 
-    bins_num = 500
-    arr = ndvi_[ndvi_ > 0]
-    y, x = np.histogram(arr, bins=bins_num)
-    x = (x[1:] + x[:-1]) / 2
-
-    n = 3  # 数字越大阈值越低
-    a1 = np.max(y[int(bins_num / 2):])
-    a1_i = np.argwhere(y == a1)
-    a2 = np.min(y[int(bins_num / 5):int(bins_num * 4 / 5)])
-    a2_i = np.argwhere(y == a2)
-    a3 = int((a1 + (n - 1) * a2) / n)
-    if a1_i.size > 1:
-        for i in range(a1_i.size):
-            candy = int(a1_i[i])
-            if a2 < candy < a1:
-                up_limit = candy
-    else:
-        up_limit = int(a1_i[0])
-    a4 = yyy(a3, y[int(a2_i[0]):up_limit])
-
-    th = x[xxx(a4, y)]  # 计算阈值
-    ndvi_[ndvi_ >= th] = 1  # 大于等于阈值设为1
-    ndvi_[ndvi_ < th] = 0  # 小于阈值设为0
-    # print('\n' + 'NDVI Threshold is ' + str(th))
-
-    if if_show:
-        plt.rcParams['xtick.direction'] = 'in'  # 将x周的刻度线方向设置向内
-        plt.rcParams['ytick.direction'] = 'in'  # 将y轴的刻度方向设置向内
-        # plt.rc('font', family='Times New Roman', size=10)
-        fig, axe = plt.subplots(2, constrained_layout=1, figsize=(7, 9), dpi=200)
-
-        axe[0].plot(x, y)
-        axe[0].scatter(th, y[xxx(th, x)], c='r', zorder=5)
-        axe[0].set_xlabel('NDVI')
-        axe[0].set_ylabel('Count')
-
-        axe[1].imshow(ndvi_)
-        axe[1].set_xlabel('NDVI')
-        axe[1].axis('off')
-        # plt.savefig(save_path)
-        plt.show()
-    else:
-        plt.close()
-
-    return ndvi_
-
-
-# 使用RGB自动分离阴阳叶
-def VegeDivision_2(r, g, b, img_data):
-    up_lim = None
-    r_band = (img_data[r - 2] + img_data[r - 1] + img_data[r]) / 3
-    g_band = (img_data[g - 2] + img_data[g - 1] + img_data[g]) / 3
-    b_band = (img_data[b - 2] + img_data[b - 1] + img_data[b]) / 3
-    r_band, g_band, b_band = r_band.astype(np.float64), g_band.astype(np.float64), b_band.astype(np.float64)
-    cive = -2 * r_band + 4 * g_band - 2 * b_band
-
-    bins_num = 500
-    arr = cive[cive > 0]
-    y, x = np.histogram(arr, bins=bins_num)
-    x = (x[1:] + x[:-1]) / 2
-
-    n = 3  # 数字越大阈值越低
-    a1 = np.max(y[int(bins_num / 2):])
-    a1_i = np.argwhere(y == a1)
-    a2 = np.min(y[int(bins_num / 5):int(bins_num * 4 / 5)])
-    a2_i = np.argwhere(y == a2)
-    a3 = int((a1 + (n - 1) * a2) / n)
-    if a1_i.size > 1:
-        for i in range(a1_i.size):
-            candy = int(a1_i[i])
-            if a2 < candy < a1:
-                up_lim = candy
-    else:
-        up_lim = int(a1_i[0])
-    a4 = yyy(a3, y[int(a2_i[0]):up_lim])
-
-    th = x[xxx(a4, y)]  # 计算阈值
-
-    plt.rcParams['xtick.direction'] = 'in'  # 将x周的刻度线方向设置向内
-    plt.rcParams['ytick.direction'] = 'in'  # 将y轴的刻度方向设置向内
-    plt.rc('font', family='Times New Roman', size=10)
-    fig, ax = plt.subplots(2, constrained_layout=1, figsize=(4, 5.5), dpi=200)
-    ax[0].plot(x, y)
-    ax[0].scatter(th, y[xxx(th, x)], c='r')
-    ax[0].set_ylabel('Times')
-    # print('\n' + 'rgb Threshold is ' + str(th))
-
-    cive[cive >= th] = 1  # 大于等于阈值设为1
-    cive[cive < th] = 0  # 小于阈值设为0
-
-    ax[1].imshow(cive)
-    ax[1].set_xlabel('Cive')
-    plt.show()
-
-    print('rgb Separating vegetation...')
-    return cive
+    ndvi_mask = ndvi_segment(ndvi_, show_plot=if_show, n=n)
+    return ndvi_mask
 
 
 def main(path_):
@@ -124,11 +111,10 @@ def main(path_):
     vi = ["ndvi", "nirv", "fcvi", "sif", "APAR"]
 
     im_data, geo, proj = tt.read_tif(os.path.join(path_, "5ref", "ref.bip"))  # type: ignore # 读取地表反射率文件
-    mask = only_vegetation(60, 100, im_data)
-    shadow = VegeDivision_2(59, 38, 16, im_data)
+    mask = ref_segment(60, 100, im_data)
 
-    ref = im_data * mask * shadow
-    tt.write_tif(os.path.join(path_, "5ref", "ref_in_vege.tif"), ref, geo, proj)  # type: ignore # 保存地表反射率文件
+    ref = im_data * mask
+    tt.write_tif(os.path.join(path_, "5ref", "vegetation_pixels.tif"), ref, geo, proj)  # type: ignore # 保存地表反射率文件
 
     plt.rcParams['xtick.direction'] = 'in'  # 将x周的刻度线方向设置向内
     plt.rcParams['ytick.direction'] = 'in'  # 将y轴的刻度方向设置向内
@@ -146,12 +132,21 @@ def main(path_):
     for i in vi:
         print('Cutting ' + i + ' ...')
         VI = tt.read_tif_array(os.path.join(path_, "VIs", i+".tif"))
-        new_vi = VI * mask * shadow
+        new_vi = VI * mask
         tt.write_tif(os.path.join(path_, "VIs", i+"_in_vege.tif"), new_vi, geo, proj)  # type: ignore # 保存地表反射率文件
 
 
 # 主函数
 if __name__ == '__main__':
-    path = r"E:\2022_8_14_sunny"
-    ref = tt.read_tif_array(os.path.join(path, "5ref", "ref.bip"))
-    only_vegetation(60, 100, ref, True)
+    dir_path = r'C:\2022_HSI'
+    # paths = ["2022_7_5_sunny", ]
+    paths = ["2022_7_5_sunny", "2022_7_9_cloudy", "2022_7_12_sunny",
+             "2022_7_13_cloudy", "2022_7_16_sunny", "2022_7_20_sunny",
+             "2022_7_23_sunny", "2022_7_27_sunny", "2022_8_2_sunny",
+             "2022_8_9_cloudy", "2022_8_13_cloudy", "2022_8_14_sunny",
+             "2022_8_16_sunny", "2022_8_20_sunny", "2022_8_24_cloudy"]
+
+    for i in tqdm(range(len(paths))):
+        path = os.path.join(dir_path, paths[i])
+        ref = tt.read_tif_array(os.path.join(path, '5ref', 'ref.bip'))
+        ref_segment(60, 100, ref, True)

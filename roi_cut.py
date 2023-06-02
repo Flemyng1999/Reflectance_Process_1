@@ -58,8 +58,27 @@ def roi(vi, geotransform, projection, roi_limit, save_path):
     return vi1
 
 
-def normal(array: np.ndarray) -> np.ndarray:
-    new_arr = (array - np.min(array)) / (np.max(array) - np.min(array))
+def normalize(array: np.ndarray) -> np.ndarray:
+    """
+    Normalize a 1D numpy array to [0,1].
+
+    Args:
+        array (np.ndarray): A 1D numpy array to be normalized.
+
+    Returns:
+        np.ndarray: A normalized 1D numpy array.
+
+    Raises:
+        AssertionError: If the input is not a 1D numpy array.
+
+    """
+    assert isinstance(array, np.ndarray), "Input must be a numpy array"
+    assert len(array.shape) == 1, "Input must be a 1D numpy array"
+
+    max_val = np.max(array)
+    min_val = np.min(array)
+
+    new_arr = (array - min_val) / (max_val - min_val)
     return new_arr
 
 
