@@ -5,6 +5,7 @@ Created on Mon Jul 18 10:31:42 2022
 @author: Flemyng
 """
 import os
+import sys
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -206,7 +207,15 @@ def main(path_):
 
 
 if __name__ == '__main__':
-    dir_path = r'C:\Users\Lenovo\Desktop\data\2022_HSI'
+    if sys.platform == "win32":
+        disk1 = 'D:'
+        disk2 = 'E:'
+    elif sys.platform == "darwin":
+        disk1 = os.path.join('/Volumes', 'HyperSpec')
+        disk2 = os.path.join('/Volumes', 'HyperSpecII')
+    else:  # 默认为 Linux
+        disk1 = os.path.join('/Volumes', 'HyperSpec')
+        disk2 = os.path.join('/Volumes', 'HyperSpecII')
     paths = ["2022_7_5_sunny", "2022_7_9_cloudy", "2022_7_12_sunny",
              "2022_7_13_cloudy", "2022_7_16_sunny", "2022_7_20_sunny",
              "2022_7_23_sunny", "2022_7_27_sunny", "2022_8_2_sunny",
@@ -214,5 +223,7 @@ if __name__ == '__main__':
              "2022_8_16_sunny", "2022_8_20_sunny", "2022_8_24_cloudy"]
 
     for i in tqdm(range(len(paths))):
-        path = os.path.join(dir_path, paths[i])
-        main(path)
+        if i < 9:
+            main(os.path.join(disk1, paths[i]))
+        else:
+            main(os.path.join(disk2, paths[i]))

@@ -1,4 +1,5 @@
 import os
+import sys
 
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
@@ -88,7 +89,15 @@ def main(path_):
 
 
 if __name__ == '__main__':
-    dir_path = r'C:\Users\Lenovo\Desktop\data\2022_HSI'
+    if sys.platform == "win32":
+        disk1 = 'D:'
+        disk2 = 'E:'
+    elif sys.platform == "darwin":
+        disk1 = os.path.join('/Volumes', 'HyperSpec')
+        disk2 = os.path.join('/Volumes', 'HyperSpecII')
+    else:  # 默认为 Linux
+        disk1 = os.path.join('/Volumes', 'HyperSpec')
+        disk2 = os.path.join('/Volumes', 'HyperSpecII')
     paths = ["2022_7_5_sunny", ]
     # paths = ["2022_7_5_sunny", "2022_7_9_cloudy", "2022_7_12_sunny",
     #          "2022_7_13_cloudy", "2022_7_16_sunny", "2022_7_20_sunny",
