@@ -1,7 +1,9 @@
 import os
+import sys
 import time
 from functools import partial
 from multiprocessing import Pool
+from typing import List, Dict
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -133,7 +135,7 @@ def check_roi_site(dir_path_):
         r, g, b = ref[58, :, :], ref[36, :, :], ref[18, :, :]
         del ref
         rgb = np.stack((r, g, b), axis=-1)
-        rgb_image = normal(rgb)  # rgb归一化
+        rgb_image = normalize(rgb)  # rgb归一化
         rgb_image[rgb_image == 0] = 1
         tt.write_tif(dst_file, rgb_image, geo, proj)
     else:
@@ -142,7 +144,7 @@ def check_roi_site(dir_path_):
     roi_mask = roi_mask * 0.4
     roi_mask = np.stack((roi_mask, roi_mask, roi_mask), axis=-1)
     rgb_image = rgb_image + roi_mask
-    rgb_image = normal(rgb_image)
+    rgb_image = normalize(rgb_image)
 
     # plot
     fig, ax = plt.subplots(figsize=(12, 8), constrained_layout=1)
@@ -153,8 +155,10 @@ def check_roi_site(dir_path_):
     plt.close()
 
 
-# 将ROI中的数据保存到csv文件中
-def data_in_roi(vi_name, date_weather_path):
+def data_in_roi(vi_name: str, date_weather_path: str) -> None:
+    """
+    将ROI中的VI数据保存到csv文件中
+    """
     roi_names = ['w{}s{}'.format(w, s) for w in range(1, 5) for s in range(1, 6)]
     VI_dict = {}
 
@@ -182,21 +186,43 @@ def data_in_roi(vi_name, date_weather_path):
     df.to_csv(os.path.join(date_weather_path, 'vi', vi_name+'.csv'))
 
 
+def ref_in_roi(path: str, ref: np.ndarray, roi_names: List[str]) -> Dict[str, np.ndarray]:
+    """
+    计算ROI中每个波段上的参考数据平均值
+    Args:
+        path(str): 存放ROI和csv文件的路径
+        ref(np.ndarray): 参考数据
+        roi_names(List[str]): ROI名称列表
+    Returns:
+        ref_mean_dict(Dict[str, np.ndarray]): ROI中每个波段上的参考数据平均值
+    """
+    ref_mean_dict: Dict[str, np.ndarray] = {}
+
+    for roi_name in roi_names:
+        roi_path = os.path.join(path, 'roi', roi_name + '.tif')
+
+        mask = tt.read_tif_array(roi_path)
+        ref_ = ref * mask
+        flat_arr = np.moveaxis(ref_, 0, -1).reshape((-1, 150))
+
+        nonzero_idx = np.nonzero(flat_arr)
+        nonzero_wave_idx, nonzero_pixel_idx = nonzero_idx[1], nonzero_idx[0]
+
+        nonzero_value = flat_arr[nonzero_pixel_idx]
+        result = np.nanmean(nonzero_value, axis=0)
+        ref_mean_dict[roi_name] = result
+
+    df = pd.DataFrame(ref_mean_dict)
+    df.to_csv(os.path.join(path, '5ref', 'vege_ref_in_roi.csv'))
+
+    return ref_mean_dict
+
+
 def main(path_):
-    roi_limit_path = r"C:\Users\Lenovo\OneDrive\Projects\HSI\Interest_Area.csv"
-    vi = ["ndvi", "nirv", "fcvi", "sif", "APAR"]
-
-    # 如果ROI文件已经存在，可节省时间
-    roi_img_path = os.path.join(path_, 'roi', 'roi.png')
-    if not os.path.exists(roi_img_path):
-        roi_cut(path_, roi_limit_path)
-        check_roi_site(path_)
-    else:
-        pass
-
-    for i_ in range(len(vi)):
-        # print('Collecting Data in ' + vi[i])
-        data_in_roi(vi[i_], path_)
+    roi_limit_path = "/docs/Interest_Area.csv"
+    ref_in_vege = np.load(os.path.join(path_, '5ref', 'ref_in_vege.npy'))
+    roi_names = ['w{}s{}'.format(w, s) for w in range(1, 5) for s in range(1, 6)]
+    ref_in_roi(path_, ref_in_vege, roi_names)
 
 
 if __name__ == '__main__':
@@ -206,16 +232,18 @@ if __name__ == '__main__':
     elif sys.platform == "darwin":
         disk1 = os.path.join('/Volumes', 'HyperSpec')
         disk2 = os.path.join('/Volumes', 'HyperSpecII')
+        # disk1 = os.path.join('/Volumes', 'T7', '2022_HSI')
+        # disk2 = os.path.join('/Volumes', 'T7', '2022_HSI')
     else:  # 默认为 Linux
         disk1 = os.path.join('/Volumes', 'HyperSpec')
         disk2 = os.path.join('/Volumes', 'HyperSpecII')
-    # paths = ["2022_7_5_sunny", ]
-    paths = ["2022_7_5_sunny", "2022_7_9_cloudy", "2022_7_12_sunny",
-             "2022_7_13_cloudy", "2022_7_16_sunny", "2022_7_20_sunny",
-             "2022_7_23_sunny", "2022_7_27_sunny", "2022_8_2_sunny",
-             "2022_8_9_cloudy", "2022_8_13_cloudy", "2022_8_14_sunny",
-             "2022_8_16_sunny", "2022_8_20_sunny", "2022_8_24_cloudy"]
+    paths = ["2022_7_5_sunny", ]
+    # paths = ["2022_7_5_sunny", "2022_7_9_cloudy", "2022_7_12_sunny",
+    #          "2022_7_13_cloudy", "2022_7_16_sunny", "2022_7_20_sunny",
+    #          "2022_7_23_sunny", "2022_7_27_sunny", "2022_8_2_sunny",
+    #          "2022_8_9_cloudy", "2022_8_13_cloudy", "2022_8_14_sunny",
+    #          "2022_8_16_sunny", "2022_8_20_sunny", "2022_8_24_cloudy"]
 
     for i in tqdm(range(len(paths))):
         if i < 9:
-            main()
+            main(os.path.join(disk1, paths[i]))
