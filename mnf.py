@@ -190,21 +190,37 @@ def test_mnf():
     plt.show()
 
 
+def test_plot(data: np.ndarray, reconstruct: np.ndarray):
+    # Plot the results
+    plt.rc('font', family='Times New Roman', )
+    fig, axs = plt.subplots(figsize=(8, 4), constrained_layout=1, dpi=300)
+
+    axs.plot(data[2], label='raw data',
+             linewidth=2, alpha=.5, solid_capstyle='round')
+    axs.plot(reconstruct[2], label='processed data',
+             linewidth=2, alpha=.5, solid_capstyle='round')
+    axs.legend()
+
+    plt.show()
+
+
 def main(path):
     # Load data
+    begin_wl = 87
     df = pd.read_csv(os.path.join(path, '5ref', 'vege_ref_in_roi.csv'), encoding='utf-8', index_col=0)
-    ref = df.values.T
+    ref = df.values.T[:, begin_wl:]
 
     # MNF transform
     reconst, A = mnf(ref, 1, ref.shape[0], 2)
 
-    df.values[:, :] = reconst.T
+    test_plot(ref, reconst)
 
-    df.to_csv(os.path.join(path, '5ref', 'denoised_vege_ref.csv'))
+    df.values[begin_wl:, :] = reconst.T
+
+    # df.to_csv(os.path.join(path, '5ref', 'denoised_vege_ref.csv'))
 
 
 if __name__ == '__main__':
-    # Path
     if sys.platform == "win32":
         disk1 = 'D:'
         disk2 = 'E:'
@@ -214,12 +230,12 @@ if __name__ == '__main__':
     else:  # 默认为 Linux
         disk1 = None
         disk2 = None
-    # paths = ["2022_7_5_sunny", ]
-    paths = ["2022_7_5_sunny", "2022_7_9_cloudy", "2022_7_12_sunny",
-             "2022_7_13_cloudy", "2022_7_16_sunny", "2022_7_20_sunny",
-             "2022_7_23_sunny", "2022_7_27_sunny", "2022_8_2_sunny",
-             "2022_8_9_cloudy", "2022_8_13_cloudy", "2022_8_14_sunny",
-             "2022_8_16_sunny", "2022_8_20_sunny", "2022_8_24_cloudy"]
+    paths = ["2022_7_5_sunny", ]
+    # paths = ["2022_7_5_sunny", "2022_7_9_cloudy", "2022_7_12_sunny",
+    #          "2022_7_13_cloudy", "2022_7_16_sunny", "2022_7_20_sunny",
+    #          "2022_7_23_sunny", "2022_7_27_sunny", "2022_8_2_sunny",
+    #          "2022_8_9_cloudy", "2022_8_13_cloudy", "2022_8_14_sunny",
+    #          "2022_8_16_sunny", "2022_8_20_sunny", "2022_8_24_cloudy"]
 
     for i in tqdm(range(len(paths))):
         if i < 9:
