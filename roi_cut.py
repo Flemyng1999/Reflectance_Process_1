@@ -218,11 +218,38 @@ def ref_in_roi(path: str, ref: np.ndarray, roi_names: List[str]) -> Dict[str, np
     return ref_mean_dict
 
 
+def test_ref_plot(path: str, wavelength_path: str):
+    """
+    检查ROI的反射率文件是否正确合理
+    Args:
+        path(str): 存放ROI的反射率csv文件父文件夹的路径
+    Returns:
+        None
+    """
+    df = pd.read_csv(os.path.join(path, '5ref', 'vege_ref_in_roi.csv'), encoding='utf-8', index_col=0)
+    roi_names = list(df.columns.values)
+    wl = np.loadtxt(wavelength_path)[:, 0]
+    fig, ax = plt.subplots(figsize=(8, 6), constrained_layout=1, dpi=200)
+    color = plt.get_cmap('viridis', len(roi_names))  # 设置colormap，数字为颜色数量
+    for i_ in range(len(roi_names)):
+        ax.plot(wl, df[roi_names[i_]],
+                linewidth=1, label=roi_names[i_],
+                alpha=0.7, solid_capstyle='round', c=color(i_))
+    plt.xlabel('Wavelength(nm)')
+    plt.ylabel('Reflectance')
+    plt.title('Vegetation reflectance of ROIs')
+    plt.legend()
+    plt.show()
+    plt.close()
+
+
 def main(path_):
     roi_limit_path = "/docs/Interest_Area.csv"
     ref_in_vege = np.load(os.path.join(path_, '5ref', 'ref_in_vege.npy'))
     roi_names = ['w{}s{}'.format(w, s) for w in range(1, 5) for s in range(1, 6)]
+    roi_cut(path_, roi_limit_path)
     ref_in_roi(path_, ref_in_vege, roi_names)
+    test_ref_plot(path_, os.path.join('/Volumes', 'HyperSpec', '50_target_resample.txt'))
 
 
 if __name__ == '__main__':
@@ -232,11 +259,9 @@ if __name__ == '__main__':
     elif sys.platform == "darwin":
         disk1 = os.path.join('/Volumes', 'HyperSpec')
         disk2 = os.path.join('/Volumes', 'HyperSpecII')
-        # disk1 = os.path.join('/Volumes', 'T7', '2022_HSI')
-        # disk2 = os.path.join('/Volumes', 'T7', '2022_HSI')
     else:  # 默认为 Linux
-        disk1 = os.path.join('/Volumes', 'HyperSpec')
-        disk2 = os.path.join('/Volumes', 'HyperSpecII')
+        disk1 = None
+        disk2 = None
     paths = ["2022_7_5_sunny", ]
     # paths = ["2022_7_5_sunny", "2022_7_9_cloudy", "2022_7_12_sunny",
     #          "2022_7_13_cloudy", "2022_7_16_sunny", "2022_7_20_sunny",
@@ -247,3 +272,5 @@ if __name__ == '__main__':
     for i in tqdm(range(len(paths))):
         if i < 9:
             main(os.path.join(disk1, paths[i]))
+        else:
+            main(os.path.join(disk2, paths[i]))
