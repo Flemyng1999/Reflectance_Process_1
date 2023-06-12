@@ -177,10 +177,10 @@ def APAR(target_rad_path, target_reflect_path, rad_path):
 
 
 def main(path_):
-    target_radiance = os.path.join(path_, r"4rad\rad_target.txt")  # 靶标布辐射文件
-    target_reflect = r"C:\Users\Lenovo\OneDrive\resample50178.txt"  # 靶标布反射率文件(长期固定)
-    rad_path = os.path.join(path_, r"4rad\rad_corr.tif")  # 地面辐射文件(校正后)
-    refl_path = os.path.join(path_, r"5ref\ref.bip")  # 地面反射率文件
+    target_radiance = os.path.join(path_, "4rad", "rad_target.txt")  # 靶标布辐射文件
+    target_reflect = os.path.join("docs", "resample50178.txt")  # 靶标布反射率文件(长期固定)
+    rad_path = os.path.join(path_, "4rad", "rad_corr.tif")  # 地面辐射文件(校正后)
+    refl_path = os.path.join(path_, "5ref", "ref.bip")  # 地面反射率文件
 
     # 检测目标文件夹是否存在
     dst_folder = os.path.join(path_, 'vi')
@@ -216,11 +216,12 @@ if __name__ == '__main__':
     else:  # 默认为 Linux
         disk1 = os.path.join('/Volumes', 'HyperSpec')
         disk2 = os.path.join('/Volumes', 'HyperSpecII')
-    paths = ["2022_7_5_sunny", "2022_7_9_cloudy", "2022_7_12_sunny",
-             "2022_7_13_cloudy", "2022_7_16_sunny", "2022_7_20_sunny",
-             "2022_7_23_sunny", "2022_7_27_sunny", "2022_8_2_sunny",
-             "2022_8_9_cloudy", "2022_8_13_cloudy", "2022_8_14_sunny",
-             "2022_8_16_sunny", "2022_8_20_sunny", "2022_8_24_cloudy"]
+    paths = ["2022_7_5_sunny", "2022_7_9_cloudy", "2022_7_12_sunny",]
+    # paths = ["2022_7_5_sunny", "2022_7_9_cloudy", "2022_7_12_sunny",
+    #          "2022_7_13_cloudy", "2022_7_16_sunny", "2022_7_20_sunny",
+    #          "2022_7_23_sunny", "2022_7_27_sunny", "2022_8_2_sunny",
+    #          "2022_8_9_cloudy", "2022_8_13_cloudy", "2022_8_14_sunny",
+    #          "2022_8_16_sunny", "2022_8_20_sunny", "2022_8_24_cloudy"]
 
     for i in tqdm(range(len(paths))):
         if i < 9:

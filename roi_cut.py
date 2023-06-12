@@ -18,13 +18,49 @@ def timer(func):
         start_time = time.time()
         result = func(*args, **kwargs)
         end_time = time.time()
-        print("函数 %s 执行时间为 %f 秒" % (func.__name__, end_time - start_time))
+        print("Function %s took %f s" % (func.__name__, end_time - start_time))
         return result
     return wrapper
 
 
+def normalize(array: np.ndarray) -> np.ndarray:
+    """
+    Normalize a 1D numpy array to [0,1].
+
+    Args:
+        array (np.ndarray): A 1D numpy array to be normalized.
+
+    Returns:
+        np.ndarray: A normalized 1D numpy array.
+
+    Raises:
+        AssertionError: If the input is not a 1D numpy array.
+
+    """
+    assert isinstance(array, np.ndarray), "Input must be a numpy array"
+    # assert len(array.shape) == 1, "Input must be a 1D numpy array"
+
+    max_val = np.max(array)
+    min_val = np.min(array)
+
+    new_arr = (array - min_val) / (max_val - min_val)
+    return new_arr
+
+
 # 产生感兴趣区的蒙版
-def roi(vi, geotransform, projection, roi_limit, save_path):
+def roi(vi: np.ndarray, geotransform: tuple, projection: str, roi_limit: np.ndarray, save_path: str) -> np.ndarray:
+    """
+    产生感兴趣区的蒙版并保存为tif格式
+    Args:
+        - vi: 一个numpy数组, 包含原始数据
+        - geotransform: 一个元组，包含数据的地理变换信息
+        - projection: 一个字符串，包含数据的投影信息
+        - roi_limit: 一个numpy数组, 指定感兴趣区的坐标范围
+        - save_path: 一个字符串，指定蒙版保存路径
+
+    Returns:
+        - 一个numpy数组, 表示感兴趣区的蒙版
+    """
     w1s1_ = np.zeros((4, 2), dtype=int)
     w1s1_[:, 0] = (roi_limit[:, 0] - geotransform[3]) / geotransform[5]
     w1s1_[:, 1] = (roi_limit[:, 1] - geotransform[0]) / geotransform[1]
@@ -60,35 +96,16 @@ def roi(vi, geotransform, projection, roi_limit, save_path):
     return vi1
 
 
-def normalize(array: np.ndarray) -> np.ndarray:
-    """
-    Normalize a 1D numpy array to [0,1].
-
-    Args:
-        array (np.ndarray): A 1D numpy array to be normalized.
-
-    Returns:
-        np.ndarray: A normalized 1D numpy array.
-
-    Raises:
-        AssertionError: If the input is not a 1D numpy array.
-
-    """
-    assert isinstance(array, np.ndarray), "Input must be a numpy array"
-    assert len(array.shape) == 1, "Input must be a 1D numpy array"
-
-    max_val = np.max(array)
-    min_val = np.min(array)
-
-    new_arr = (array - min_val) / (max_val - min_val)
-    return new_arr
-
-
 # 裁切所有的感兴趣区并且输出效果图
-def roi_cut(path_date_weather, csv_path):
+@timer
+def roi_cut(path_date_weather, csv_path, roi_names):
+    """
+    该函数的功能是从一系列的NDVI图像中提取出感兴趣的区域(ROI)并将其保存为单独的TIFF文件。
+    Args:
+        path_date_weather: 包含NDVI图像的文件夹路径
+        csv_path: 包含ROI区域限制值的CSV文件路径, CSV文件应该具有行列与ROI名称的对应关系
+    """
     limit_value = pd.read_csv(csv_path, index_col=0).values
-
-    roi_names = ['w{}s{}.tif'.format(w, s) for w in range(1, 5) for s in range(1, 6)]
 
     # 检测目标文件夹是否存在
     dst_folder = os.path.join(path_date_weather, 'roi')
@@ -99,6 +116,7 @@ def roi_cut(path_date_weather, csv_path):
     ndvi, geo, proj = tt.read_tif(os.path.join(path_date_weather, "vi", "ndvi.tif"))
     # 定义一个进程池
     cup_count = os.cpu_count()
+    roi_layers = []  # 存储所有的ROI蒙版
     with Pool(processes=cup_count) as pool:
         # 对每个区域都启动一个进程进行处理
         for i_ in range(20):
@@ -106,14 +124,23 @@ def roi_cut(path_date_weather, csv_path):
             save_path = os.path.join(path_date_weather, 'roi', roi_names[i_])
             # 使用 partial 函数固定部分参数，方便进程池调用
             func = partial(roi, ndvi, geo, proj, area, save_path)
-            pool.apply_async(func)
+            result = pool.apply_async(func)
+            # roi_layers.append(result.get())  # 将ROI蒙版添加到列表中
 
         # 等待所有进程完成
         pool.close()
         pool.join()
 
+    # # 将所有的ROI蒙版合成一个多层的numpy数组
+    # roi_array = np.stack(roi_layers, axis=0)
+    # # 将多层的numpy数组保存为TIFF文件
+    # tt.write_tif(os.path.join(path_date_weather, 'roi', 'roi.tif'), roi_array, geo, proj)
+
+    # return roi_array
+
 
 # 检测roi的位置是否正确
+@timer
 def check_roi_site(dir_path_):
     roi_files = ['w{}s{}.tif'.format(w, s) for w in range(1, 5) for s in range(1, 6)]
 
@@ -155,6 +182,7 @@ def check_roi_site(dir_path_):
     plt.close()
 
 
+@timer
 def data_in_roi(vi_name: str, date_weather_path: str) -> None:
     """
     将ROI中的VI数据保存到csv文件中
@@ -186,6 +214,7 @@ def data_in_roi(vi_name: str, date_weather_path: str) -> None:
     df.to_csv(os.path.join(date_weather_path, 'vi', vi_name+'.csv'))
 
 
+@timer
 def ref_in_roi(path: str, ref: np.ndarray, roi_names: List[str]) -> Dict[str, np.ndarray]:
     """
     计算ROI中每个波段上的参考数据平均值
@@ -214,8 +243,7 @@ def ref_in_roi(path: str, ref: np.ndarray, roi_names: List[str]) -> Dict[str, np
 
     df = pd.DataFrame(ref_mean_dict)
     df.to_csv(os.path.join(path, '5ref', 'vege_ref_in_roi.csv'))
-
-    return ref_mean_dict
+    del df, ref_mean_dict
 
 
 def test_ref_plot(path: str, wavelength_path: str):
@@ -229,7 +257,7 @@ def test_ref_plot(path: str, wavelength_path: str):
     df = pd.read_csv(os.path.join(path, '5ref', 'vege_ref_in_roi.csv'), encoding='utf-8', index_col=0)
     roi_names = list(df.columns.values)
     wl = np.loadtxt(wavelength_path)[:, 0]
-    fig, ax = plt.subplots(figsize=(8, 6), constrained_layout=1, dpi=200)
+    fig, ax = plt.subplots(figsize=(8, 6), constrained_layout=1)
     color = plt.get_cmap('viridis', len(roi_names))  # 设置colormap，数字为颜色数量
     for i_ in range(len(roi_names)):
         ax.plot(wl, df[roi_names[i_]],
@@ -244,12 +272,14 @@ def test_ref_plot(path: str, wavelength_path: str):
 
 
 def main(path_):
-    roi_limit_path = "/docs/Interest_Area.csv"
+    roi_limit_path = os.path.join('docs', 'Interest_Area.csv')
     ref_in_vege = np.load(os.path.join(path_, '5ref', 'ref_in_vege.npy'))
     roi_names = ['w{}s{}'.format(w, s) for w in range(1, 5) for s in range(1, 6)]
-    roi_cut(path_, roi_limit_path)
+
+    roi_cut(path_, roi_limit_path, roi_names)
+    check_roi_site(path_)
     ref_in_roi(path_, ref_in_vege, roi_names)
-    test_ref_plot(path_, os.path.join('/Volumes', 'HyperSpec', '50_target_resample.txt'))
+    # test_ref_plot(path_, os.path.join('/Volumes', 'HyperSpec', '50_target_resample.txt'))
 
 
 if __name__ == '__main__':

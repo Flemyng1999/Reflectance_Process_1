@@ -22,15 +22,14 @@ def test_plot(data: np.ndarray, reconstruct: np.ndarray):
     plt.show()
 
 
-def resample(path: str, wavelength: np.ndarray, start_wl: float = 400, end_wl: float = 990):
+def resample(path: str, wavelength: np.ndarray, start_wl: float = 400, end_wl: float = 1000):
     """
     重新采样函数
     Args:
-    path: str, 数据文件夹路径
-    wavelength: np.ndarray, 原始数据的光谱波长
-    start_wl: float, 重采样后的起始波长，默认为400
-    end_wl: float, 重采样后的结束波长，默认为990
-
+        path: str, 数据文件夹路径
+        wavelength: np.ndarray, 原始数据的光谱波长
+        start_wl: float, 重采样后的起始波长，默认为400
+        end_wl: float, 重采样后的结束波长，默认为990
     """
     # load data
     df = pd.read_csv(os.path.join(path, '5ref', 'denoised_vege_ref.csv'), encoding='utf-8', index_col=0)
@@ -43,6 +42,7 @@ def resample(path: str, wavelength: np.ndarray, start_wl: float = 400, end_wl: f
 
     # 初始化一个字典，用于存储重采样后的信号
     resample_ref_dict: Dict[str, np.ndarray] = {}
+    resample_ref_dict['wavelength'] = new_wl
 
     for i_ in range(ref.shape[0]):
         # 对当前信号进行重采样
@@ -50,7 +50,7 @@ def resample(path: str, wavelength: np.ndarray, start_wl: float = 400, end_wl: f
         resample_ref_dict[name_list[i_]] = result
 
     df = pd.DataFrame(resample_ref_dict)
-    df.to_csv(os.path.join(path, '5ref', 'resampled_vege_ref.csv'))
+    df.to_csv(os.path.join(path, '5ref', 'resampled_vege_ref.csv'), index=False)
 
 
 if __name__ == '__main__':

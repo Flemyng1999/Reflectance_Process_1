@@ -20,11 +20,12 @@ def test_plot(data: np.ndarray, reconstruct: np.ndarray):
     axs.legend()
 
     plt.show()
+    plt.close()
 
 
 def main(path):
     # Load data
-    begin_wl = 86
+    begin_wl = 90
     df = pd.read_csv(os.path.join(path, '5ref', 'vege_ref_in_roi.csv'), encoding='utf-8', index_col=0)
     ref = df.values.T[:, begin_wl:]
 
